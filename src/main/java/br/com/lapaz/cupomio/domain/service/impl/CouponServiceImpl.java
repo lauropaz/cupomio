@@ -6,6 +6,7 @@ import br.com.lapaz.cupomio.domain.exception.NotFoundException;
 import br.com.lapaz.cupomio.domain.model.Coupon;
 import br.com.lapaz.cupomio.domain.repository.CouponRepository;
 import br.com.lapaz.cupomio.domain.service.CouponService;
+import java.util.List;
 import java.time.Clock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,23 @@ public class CouponServiceImpl implements CouponService {
                 .orElseThrow(() -> new NotFoundException("Coupon not found"));
         coupon.markAsDeleted(clock);
         couponRepository.save(coupon);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CouponResponse findById(Long id) {
+        Coupon coupon = couponRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new NotFoundException("Coupon not found"));
+        return toResponse(coupon);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CouponResponse> findAll() {
+        return couponRepository.findAllByDeletedFalseOrderByCreatedAtDesc()
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     private CouponResponse toResponse(Coupon coupon) {

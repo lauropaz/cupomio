@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -85,5 +86,39 @@ class CouponControllerTest {
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.code").value("BUSINESS_RULE"))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("Coupon already deleted"));
+    }
+
+    @Test
+    void shouldGetCouponById() throws Exception {
+        CouponResponse response = new CouponResponse(1L, "ABCDEF", "Desc", BigDecimal.valueOf(5), LocalDate.now().plusDays(3), true, false, LocalDateTime.now(), LocalDateTime.now(), null);
+        Mockito.when(couponService.findById(1L)).thenReturn(response);
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/coupons/{id}", 1))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.code").value("ABCDEF"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.published").value(true));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenGettingById() throws Exception {
+        Mockito.when(couponService.findById(99L)).thenThrow(new NotFoundException("not found"));
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/coupons/{id}", 99))
+                .andExpect(MockMvcResultMatchers.status().isNotFound())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
+    void shouldListAllCoupons() throws Exception {
+        List<CouponResponse> list = List.of(
+                new CouponResponse(1L, "ABCDEF", "Desc1", BigDecimal.valueOf(5), LocalDate.now().plusDays(1), true, false, LocalDateTime.now(), LocalDateTime.now(), null),
+                new CouponResponse(2L, "UVWXYZ", "Desc2", BigDecimal.valueOf(10), LocalDate.now().plusDays(2), false, false, LocalDateTime.now(), LocalDateTime.now(), null)
+        );
+        Mockito.when(couponService.findAll()).thenReturn(list);
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/coupons"))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$[0].code").value("ABCDEF"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$[1].code").value("UVWXYZ"));
     }
 }

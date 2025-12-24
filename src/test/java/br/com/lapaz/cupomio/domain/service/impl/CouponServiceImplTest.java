@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -91,5 +92,41 @@ class CouponServiceImplTest {
 
         assertThrows(BusinessException.class, () -> couponService.delete(1L));
         verify(couponRepository, Mockito.never()).save(any(Coupon.class));
+    }
+
+    @Test
+    void shouldFindCouponById() {
+        Coupon coupon = Coupon.create("ABCDEF", "Desc", BigDecimal.ONE, LocalDate.now(CLOCK).plusDays(1), true, CLOCK);
+        ReflectionTestUtils.setField(coupon, "id", 3L);
+        when(couponRepository.findByIdAndDeletedFalse(3L)).thenReturn(Optional.of(coupon));
+
+        CouponResponse response = couponService.findById(3L);
+
+        assertEquals(3L, response.id());
+        assertEquals("ABCDEF", response.code());
+        verify(couponRepository, times(1)).findByIdAndDeletedFalse(3L);
+    }
+
+    @Test
+    void shouldFailWhenCouponNotFoundById() {
+        when(couponRepository.findByIdAndDeletedFalse(10L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> couponService.findById(10L));
+    }
+
+    @Test
+    void shouldListAllCouponsNotDeleted() {
+        Coupon coupon1 = Coupon.create("ABCDEF", "Desc1", BigDecimal.ONE, LocalDate.now(CLOCK).plusDays(1), true, CLOCK);
+        ReflectionTestUtils.setField(coupon1, "id", 1L);
+        Coupon coupon2 = Coupon.create("UVWXYZ", "Desc2", BigDecimal.ONE, LocalDate.now(CLOCK).plusDays(2), false, CLOCK);
+        ReflectionTestUtils.setField(coupon2, "id", 2L);
+        when(couponRepository.findAllByDeletedFalseOrderByCreatedAtDesc()).thenReturn(List.of(coupon1, coupon2));
+
+        List<CouponResponse> responses = couponService.findAll();
+
+        assertEquals(2, responses.size());
+        assertEquals("ABCDEF", responses.get(0).code());
+        assertEquals("UVWXYZ", responses.get(1).code());
+        verify(couponRepository, times(1)).findAllByDeletedFalseOrderByCreatedAtDesc();
     }
 }
